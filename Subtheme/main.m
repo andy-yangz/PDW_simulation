@@ -2,22 +2,20 @@
 clear all;
 close all;
 clc
-parameter;
+r = SliderPlant;
 
 time = [];
 result = [];
-
+q0 = r.q;
 tspan = [0 15];
-options = odeset('Events',@collision,'RelTol',1e-12,'AbsTol',1e-12*ones(1,8),'Refine',15);
+% options = odeset('Events',@collision,'RelTol',1e-12,'AbsTol',1e-12*ones(1,8),'Refine',15);
 % options = odeset('Events',@collision,'RelTol',1e-5);
+options = odeset('RelTol',1e-12,'AbsTol',1e-12*ones(1,8),'Refine',15);
 %%
-for hosuu = 1:1
-    [T,Q] = ode45(@slider,tspan,q0,options);
-    nt = length(T);
-    time=[time;T];
-    result=[result;Q];
-    
-end
+
+[T,Q] = ode45(@r.slider_dynamic,[0 r.simulation_time],r.q,options);
+time=[time;T];
+result=[result;Q];
 
 %
 % figure(1)
@@ -72,16 +70,16 @@ for i=1:length(Time)
 
     x(i,1) = Result(i,1);
     y(i,1) = Result(i,2);
-    x(i,2) = x(i,1)+R*sin(Result(i,3)); % upper COC
-    y(i,2) = y(i,1)+R*cos(Result(i,3));
-    x(i,3) = x(i,2)-(2*R-2*a)*sin(Result(i,3)); % Below COC
-    y(i,3) = y(i,2)-(2*R-2*a)*cos(Result(i,3));
+    x(i,2) = x(i,1)+r.R*sin(Result(i,3)); % upper COC
+    y(i,2) = y(i,1)+r.R*cos(Result(i,3));
+    x(i,3) = x(i,2)-(2*r.R-2*r.a)*sin(Result(i,3)); % Below COC
+    y(i,3) = y(i,2)-(2*r.R-2*r.a)*cos(Result(i,3));
     x(i,4) = x(i,2); % Contact point
-    y(i,4) = y(i,2)-R;
-    x(i,5) = x(i,1)+a*sin(Result(i,3));
-    y(i,5) = y(i,1)+a*cos(Result(i,3));
-    x(i,6) = x(i,5)-b*sin(Result(i,4));
-    y(i,6) = y(i,5)-b*cos(Result(i,4));
+    y(i,4) = y(i,2)-r.R;
+    x(i,5) = x(i,1)+r.a*sin(Result(i,3));
+    y(i,5) = y(i,1)+r.a*cos(Result(i,3));
+    x(i,6) = x(i,5)-r.b*sin(Result(i,4));
+    y(i,6) = y(i,5)-r.b*cos(Result(i,4));
 
     angles(i,1) = 5*pi/4-Result(i,3); % Start angle of below arc 
     angles(i,2) = angles(i,1)+pi/2; % End angle
@@ -91,12 +89,12 @@ end
 
 figure(4)
 t1 = linspace(angles(1,1),angles(1,2));
-x1 = R*cos(t1) + x(1,2);
-y1 = R*sin(t1) + y(1,2);
+x1 = r.R*cos(t1) + x(1,2);
+y1 = r.R*sin(t1) + y(1,2);
 t2 = linspace(angles(1,3),angles(1,4));
-x2 = R*cos(t2) + x(1,3);
-y2 = R*sin(t2) + y(1,3);
-ground = plot([q0(1)-5, q0(1)+5],[q0(2)-R*(1-cos(q0(3))),q0(2)-R*(1-cos(q0(3)))],'k','LineWidth',2);hold on;
+x2 = r.R*cos(t2) + x(1,3);
+y2 = r.R*sin(t2) + y(1,3);
+ground = plot([q0(1)-5, q0(1)+5],[q0(2)-r.R*(1-cos(q0(3))),q0(2)-r.R*(1-cos(q0(3)))],'k','LineWidth',2);hold on;
 % below_arc = plot_arc(angles(1,1),angles(1,2),x(i,2),y(i,2),R);hold on;
 % upper_arc = plot_arc(angles(1,3),angles(1,4),x(i,3),y(i,3),R);
 below_arc = fill(x1,y1,'y');hold on;
@@ -113,11 +111,11 @@ ii = 1;
 for i=1:10:length(Time)
     set(gcf,'Color','k');
     t1 = linspace(angles(i,1),angles(i,2));
-    x1 = R*cos(t1) + x(i,2);
-    y1 = R*sin(t1) + y(i,2);
+    x1 = r.R*cos(t1) + x(i,2);
+    y1 = r.R*sin(t1) + y(i,2);
     t2 = linspace(angles(i,3),angles(i,4));
-    x2 = R*cos(t2) + x(i,3);
-    y2 = R*sin(t2) + y(i,3);
+    x2 = r.R*cos(t2) + x(i,3);
+    y2 = r.R*sin(t2) + y(i,3);
     set(upper_arc,'Vertices',[x1(:),y1(:)]);
     set(below_arc,'Vertices',[x2(:),y2(:)]);
     set(contact_point,'Xdata',x(i,4),'Ydata',y(i,4));
