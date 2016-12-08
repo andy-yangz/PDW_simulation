@@ -1,6 +1,6 @@
 classdef SliderPlant
 	% Slider Class, method and properties of it
-	properties (GetAccess = private)
+	properties (SetAccess = private)
 		m1 = 1.0; 
 		m2 = 1.0;
 		a = 0.3;
@@ -18,14 +18,14 @@ classdef SliderPlant
 		N
 	end
 	properties 
-		q = [0 0 0 pi/6 0 0 0 0]'; % x,z,th1,th2
-		simulation_time = 3;
+		q = [0 0 pi/6 0 0 0 0 0]'; % x,z,th1,th2
+		simulation_time = 5;
 	end
 
 	methods
-		function obj=SliderPlant(q0, simulation_time)
+		function obj=SliderPlant(q, simulation_time)
 			if (nargin>0)
-				obj.q0 = q0;
+				obj.q = q0;
 				obj.simulation_time = simulation_time;
 			end
 		end
