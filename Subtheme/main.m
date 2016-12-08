@@ -12,10 +12,11 @@ tspan = [0 15];
 % options = odeset('Events',@collision,'RelTol',1e-5);
 options = odeset('RelTol',1e-12,'AbsTol',1e-12*ones(1,8),'Refine',15);
 %%
-
+% tic;
 [T,Q] = ode45(@r.slider_dynamic,[0 r.simulation_time],r.q,options);
 time=[time;T];
 result=[result;Q];
+% fprintf('%d sec cost.',toc);
 
 %
 % figure(1)
