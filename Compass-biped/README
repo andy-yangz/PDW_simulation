@@ -1,0 +1,27 @@
+@RussTedrake  It seems I met similar problem.
+I downloaded the drake win64 version on my win10 computer, I can run some examples well, like the rimless wheel, however, when I run some examples, it will raise some error like.
+
+    >> runPassive
+    Invalid MEX-file 'C:\Users\Andy\Documents\MATLAB\drake-v0.9.11-win64\drake\systems\plants\constructModelmex.mexw64': The specified module could not be found.
+
+    Error in RigidBodyManipulator/createMexPointer (line 2139)
+        obj.mex_model_ptr = constructModelmex(obj);
+
+    Error in RigidBodyManipulator/compile (line 846)
+      model = createMexPointer(model);
+
+    Error in RigidBodyManipulator/addRobotFromURDF (line 60)
+      model = compile(model);  % ideally this would happen on entry into any function...
+
+    Error in PlanarRigidBodyManipulator/addRobotFromURDF (line 90)
+      model = addRobotFromURDF@RigidBodyManipulator(model,urdf_filename,xyz,rpy,options);
+
+    Error in PlanarRigidBodyManipulator (line 78)
+        obj = addRobotFromURDF(obj,urdf_filename,zeros(3,1),zeros(3,1),options);
+
+    Error in runPassive (line 4)
+       m = PlanarRigidBodyManipulator('KneedCompassGait.urdf', options);
+
+Before I write this comment, I tried running Dependency Walker inside matlab, and I get this.
+![image](https://cloud.githubusercontent.com/assets/23011317/20619569/95018e7a-b338-11e6-9b83-34a611d8f51c.png)
+So I search some lost files name on Google, they suggest me do [this](http://stackoverflow.com/questions/17023419/win-7-64-bit-dll-problems).
