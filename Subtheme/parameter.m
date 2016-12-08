@@ -6,6 +6,6 @@ R = 1.0243;
 I1 = 0.1; %慣性モーメント
 I2 = 0.1;
 g = 9.81; %重力加速度
-q0 = [0 0 0 pi/6 0 0 0 0]'; % x,z,th1,th2
-simulation_time = 3;
+q0 = [0 0 pi/6 0 0 0 0 0]'; % x,z,th1,th2
+simulation_time = 5;
 

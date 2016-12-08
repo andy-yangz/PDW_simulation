@@ -11,6 +11,7 @@ tspan = [0 15];
 options = odeset('Events',@collision,'RelTol',1e-12,'AbsTol',1e-12*ones(1,8),'Refine',15);
 % options = odeset('Events',@collision,'RelTol',1e-5);
 %%
+tic
 for hosuu = 1:1
     [T,Q] = ode45(@slider,tspan,q0,options);
     nt = length(T);
@@ -18,7 +19,8 @@ for hosuu = 1:1
     result=[result;Q];
     
 end
-
+toc
+fprintf('%d sec cost.', toc)
 %
 % figure(1)
 % plot(time,result(:,1));
