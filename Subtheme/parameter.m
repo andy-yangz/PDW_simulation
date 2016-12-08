@@ -9,3 +9,4 @@ g = 9.81; %èdóÕâ¡ë¨ìx
 q0 = [0 0 pi/6 0 0 0 0 0]'; % x,z,th1,th2
 simulation_time = 5;
 
+

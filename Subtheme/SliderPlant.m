@@ -1,6 +1,7 @@
 classdef SliderPlant
 	% Slider Class, method and properties of it
-	properties (GetAccess=private)
+
+	properties (SetAccess = private)
 		m1 = 1.0; 
 		m2 = 1.0;
 		a = 0.3;
@@ -18,60 +19,65 @@ classdef SliderPlant
 		N
 	end
 	properties 
-		q = [0 0 0 pi/6 0 0 0 0]'; % x,z,th1,th2
-		simulation_time = 3;
+		q = [0 0 pi/6 0 0 0 0 0]'; % x,z,th1,th2
+		simulation_time = 5;
 	end
 
 	methods
-		function obj=SliderPlant(q0, simulation_time)
-			if (nargin>0):
-				obj.q0 = q0;
+		function obj=SliderPlant(q, simulation_time)
+			if (nargin>0)
+				obj.q = q;
 				obj.simulation_time = simulation_time;
 			end
 		end
 
-		function M = get.M(obj,q)
+
+		function M = get.M(obj)
 			M = zeros(4,4);
 			M(1,1) = obj.m1+obj.m2;
 			M(1,2) = 0;
-			M(1,3) = obj.a*(obj.m1+obj.m2)*cos(q(3));
-			M(1,4) = -b*m2*cos(q(4));
+			M(1,3) = obj.a*(obj.m1+obj.m2)*cos(obj.q(3));
+			M(1,4) = -obj.b*obj.m2*cos(obj.q(4));
 			M(2,1) = 0;
 			M(2,2) = obj.m1+obj.m2;
-			M(2,3) = -obj.a*(obj.m1+obj.m2)*sin(q(3));
-			M(2,4) = b*m2*sin(q(4));
-			M(3,1) = obj.a*(obj.m1+obj.m2)*cos(q(3));
-			M(3,2) = -obj.a*(obj.m1+obj.m2)*sin(q(3));
-			M(3,3) = I1+obj.a^2*(obj.m1+obj.m2);
-			M(3,4) = -obj.a*b*m2*cos(q(3)-q(4));
-			M(4,1) = -b*m2*cos(q(4));
-			M(4,2) = b*m2*sin(q(4));
-			M(4,3) = -obj.a*b*m2*cos(q(3)-q(4));
-			M(4,4) = I2+b^2*m2;
+			M(2,3) = -obj.a*(obj.m1+obj.m2)*sin(obj.q(3));
+			M(2,4) = obj.b*obj.m2*sin(obj.q(4));
+			M(3,1) = obj.a*(obj.m1+obj.m2)*cos(obj.q(3));
+			M(3,2) = -obj.a*(obj.m1+obj.m2)*sin(obj.q(3));
+			M(3,3) = obj.I1+obj.a^2*(obj.m1+obj.m2);
+			M(3,4) = -obj.a*obj.b*obj.m2*cos(obj.q(3)-obj.q(4));
+			M(4,1) = -obj.b*obj.m2*cos(obj.q(4));
+			M(4,2) = obj.b*obj.m2*sin(obj.q(4));
+			M(4,3) = -obj.a*obj.b*obj.m2*cos(obj.q(3)-obj.q(4));
+			M(4,4) = obj.I2+obj.b^2*obj.m2;
 		end
 
-		function h = get.h(obj,q)
+		function h = get.h(obj)
 
 			h = zeros(3,1);
-			h(1,1) = -obj.a*q(7)^2*(m1+m2)*sin(q(3)) + b*q(8)^2*m2*sin(q(4));
-			h(2,1) = (m1+m2)*(g-obj.a*q(7)^2*cos(q(3))) + b*q(8)^2*m2*cos(q(4));
-			h(3,1) = -obj.a*g*(m1+m2)*sin(q(3))+b*q(7)^2*m2*sin(q(7)-q(8));
-			h(4,1) = b*m2*(obj.a*q(7)^2*sin(q(7)-q(8)) + g*sin(q(8)));
+			h(1,1) = -obj.a*obj.q(7)^2*(obj.m1+obj.m2)*sin(obj.q(3)) + obj.b*obj.q(8)^2*obj.m2*sin(obj.q(4));
+			h(2,1) = (obj.m1+obj.m2)*(obj.g-obj.a*obj.q(7)^2*cos(obj.q(3))) + obj.b*obj.q(8)^2*obj.m2*cos(obj.q(4));
+			h(3,1) = -obj.a*obj.g*(obj.m1+obj.m2)*sin(obj.q(3))+obj.b*obj.q(7)^2*obj.m2*sin(obj.q(7)-obj.q(8));
+			h(4,1) = obj.b*obj.m2*(obj.a*obj.q(7)^2*sin(obj.q(7)-obj.q(8)) + obj.g*sin(obj.q(8)));
 
 		end
 
-		function N = get_N(obj,q)
+		function N = get.N(obj)
 
-		    parameter;
-
-		    M = get_M(q);
-		    h = get_h(q);
-
-
-		    J = [ 1 0 R*(cos(q(3))-1) 0;
-		          0 1 -R*sin(q(3)) 0];
-		    J_dot = [0 0 -R*sin(q(3))*q(7) 0;
-		    		0 0 -R*cos(q(3))*q(7) 0];
-		    lambda = inv(J*inv(M)*J')*(J*inv(M)*h-J_dot*q(5:8));
+		    J = [ 1 0 obj.R*(cos(obj.q(3))-1) 0;
+		          0 1 -obj.R*sin(obj.q(3)) 0];
+		    J_dot = [0 0 -obj.R*sin(obj.q(3))*obj.q(7) 0;
+		    		0 0 -obj.R*cos(obj.q(3))*obj.q(7) 0];
+		    lambda = inv(J*inv(obj.M)*J')*(J*inv(obj.M)*obj.h-J_dot*obj.q(5:8));
 		    N = J'*lambda;
 		end
+
+		function dq = slider_dynamic(obj,t,q)
+			obj.q = q;
+			dq = zeros(8,1);
+			dq(1:4,1) = q(5:8);
+			dq(5:8,1) = inv(obj.M)*(obj.N-obj.h);
+		end
+	end
+
+end
