@@ -2,8 +2,10 @@
 clear all;
 close all;
 clc
-r = SliderPlant;
-
+% you can also initiliaze SliderPlant in command window
+% you can initialize q0 and simulation_time for it
+% r = SliderPlant;
+r = SliderPlant([0 0 0 pi/3 0 0 0 0],5);
 time = [];
 result = [];
 q0 = r.q;

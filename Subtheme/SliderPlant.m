@@ -25,7 +25,7 @@ classdef SliderPlant
 	methods
 		function obj=SliderPlant(q, simulation_time)
 			if (nargin>0)
-				obj.q = q0;
+				obj.q = q;
 				obj.simulation_time = simulation_time;
 			end
 		end
