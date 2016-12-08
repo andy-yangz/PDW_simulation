@@ -2,6 +2,7 @@ classdef SliderPlant
 	% Slider Class, method and properties of it
 
 	properties (SetAccess = private)
+		% Physical parameter of slider
 		m1 = 1.0; 
 		m2 = 1.0;
 		a = 0.3;
@@ -9,22 +10,29 @@ classdef SliderPlant
 		R = 1.0243;
 		I1 = 0.1; 
 		I2 = 0.1;
+		%Control parameter
+		S = [0 0 1 -1]';
 	end
 	properties (Constant)
 		g = 9.81; 
 	end
 	properties (Dependent)
-		M
-		h
-		N
+		M % Inertial matrix
+		h 
+		N % Right side of equation
+		u % Control input
+		y % Control output
+		dy
 	end
 	properties 
 		q = [0 0 pi/6 0 0 0 0 0]'; % x,z,th1,th2
+		t = 0;
 		simulation_time = 5;
 	end
 
 	methods
 		function obj=SliderPlant(q, simulation_time)
+			% Constructor, you can set initil q and simulation times
 			if (nargin>0)
 				obj.q = q;
 				obj.simulation_time = simulation_time;
@@ -68,12 +76,43 @@ classdef SliderPlant
 		          0 1 -obj.R*sin(obj.q(3)) 0];
 		    J_dot = [0 0 -obj.R*sin(obj.q(3))*obj.q(7) 0;
 		    		0 0 -obj.R*cos(obj.q(3))*obj.q(7) 0];
-		    lambda = inv(J*inv(obj.M)*J')*(J*inv(obj.M)*obj.h-J_dot*obj.q(5:8));
-		    N = J'*lambda;
+		    lambda = inv(J*inv(obj.M)*J')*(J*inv(obj.M)*(obj.h-obj.S*obj.u)-J_dot*obj.q(5:8));
+		    N = J'*lambda + obj.S*obj.u;
 		end
 
+		function y = get.y(obj)
+			y = obj.q(3) - obj.q(4);
+		end
+
+		function dy = get.dy(obj)
+			dy = obj.q(7) - obj.q(8);
+		end
+
+		function u = get.u(obj)
+			% Input parameters
+			J = [ 1 0 obj.R*(cos(obj.q(3))-1) 0;
+		          0 1 -obj.R*sin(obj.q(3)) 0];
+		    J_dot = [0 0 -obj.R*sin(obj.q(3))*obj.q(7) 0;
+		    		0 0 -obj.R*cos(obj.q(3))*obj.q(7) 0];
+			Am = 0.8; %Amplitude
+			T = 0.5; %Periodic time
+			omega = 2*pi/T;
+			yd = Am*sin(omega*obj.t);
+			dyd = Am*omega*cos(omega*obj.t);
+			ddyd = -Am*omega^2*sin(omega*obj.t);
+			Kp = 20;
+			Kd = 10;
+			v = ddyd+Kd*(dyd-obj.dy)+Kp*(yd-obj.y);
+			X = J*inv(obj.M)*J';
+			Y = (eye(4)-J'*inv(X)*J*inv(obj.M));
+			A = obj.S'*inv(obj.M)*Y*obj.S;
+			B = obj.S'*inv(obj.M)*(Y*obj.h+J'*inv(X)*J_dot*obj.q(5:8));
+			u = inv(A)*(v+B);
+			% u = 4*sin(obj.t*pi);
+		end
 		function dq = slider_dynamic(obj,t,q)
 			obj.q = q;
+			obj.t = t;
 			dq = zeros(8,1);
 			dq(1:4,1) = q(5:8);
 			dq(5:8,1) = inv(obj.M)*(obj.N-obj.h);
