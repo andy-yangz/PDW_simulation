@@ -5,8 +5,10 @@ clc
 
 % you can also initiliaze SliderPlant in command window
 % you can initialize q0 and simulation_time for it
-r = SliderPlant;
-% r = SliderPlant([0 0 0 pi/3 0 0 0 0],5);
+% r = SliderPlant;
+r = SliderPlant([0 0 0 0 0 0 0 0],5);
+% r = SliderPlant([0 0 pi/6 0 0 0 0 0],5);
+
 time = [];
 result = [];
 q0 = r.q;
@@ -14,13 +16,15 @@ tspan = [0 15];
 % options = odeset('Events',@collision,'RelTol',1e-12,'AbsTol',1e-12*ones(1,8),'Refine',15);
 % options = odeset('Events',@collision,'RelTol',1e-5);
 options = odeset('RelTol',1e-12,'AbsTol',1e-12*ones(1,8),'Refine',15);
-%%
+
+%% Dynamic calculation
 % tic;
 [T,Q] = ode45(@r.slider_dynamic,[0 r.simulation_time],r.q,options);
 time=[time;T];
 result=[result;Q];
 % fprintf('%d sec cost.',toc);
 
+%%
 %
 % figure(1)
 % plot(time,result(:,1));
@@ -52,7 +56,14 @@ result=[result;Q];
 % ylabel('dth1 [rad/s]');
 % grid on;
 
+figure(5)
+plot(time, result(:,3)-result(:,4));
+xlabel('Time [s]');
+ylabel('y(\theta1 - \theta2) [rad]');
+grid on;
+print('y','-dpng');
 
+%%
 ii = 1;
 for i = 1:length(time)
     if time(i) >= 0.001*(ii-1)
@@ -61,7 +72,7 @@ for i = 1:length(time)
         ii = ii + 1;
     end
 end
-
+%%
 % L = sqrt(2*R*a-a^2);
 % ini_angle = asin(L/R);
 ini_angle = pi/4;
@@ -91,7 +102,7 @@ for i=1:length(Time)
     angles(i,4) = angles(i,2)-pi;
 end
 
-figure(4)
+figure(100)
 t1 = linspace(angles(1,1),angles(1,2));
 x1 = r.R*cos(t1) + x(1,2);
 y1 = r.R*sin(t1) + y(1,2);
@@ -113,7 +124,7 @@ axis([q0(1)-2, q0(1)+2,q0(2)-1, q0(2)+2]);
 ax = gca;
 ax.SortMethod = 'depth';
 ii = 1;
-for i=1:10:length(Time)
+for i=1:15:length(Time)
     set(gcf,'Color','k');
     t1 = linspace(angles(i,1),angles(i,2));
     x1 = r.R*cos(t1) + x(i,2);
@@ -130,13 +141,13 @@ for i=1:10:length(Time)
     title(sprintf('Time = %f[sec]',Time(i)),'Color','w');
     drawnow;
 
-    % movie(ii) = getframe(gcf);
+    movie(ii) = getframe(gcf);
     % if ii == 1 
     %     [mov(:,:,1,ii), map] = rgb2ind( movie(ii).cdata, 256, 'nodither');
     % else
     %     mov(:,:,1,ii) = rgb2ind( movie(ii).cdata, map, 'nodither');
     % end
-    % ii = ii+1;
+    ii = ii+1;
 end
 
 
@@ -149,9 +160,9 @@ end
 % close(v);
 
 %AVI file using Motion JPEG encoding
-% v = VideoWriter('movie.avi','Motion JPEG AVI');
-% open(v);
-% writeVideo(v,movie)
-% close(v);
+v = VideoWriter('sine_input.avi','Motion JPEG AVI');
+open(v);
+writeVideo(v,movie)
+close(v);
 
 
