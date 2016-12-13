@@ -3,7 +3,8 @@ classdef RimlessPlant<handle
 	properties (SetAccess = private)
 		m = 1.0; % Mass
 		I = 0.1; % Moment of Inertia
-        L = 1;
+        L = 1; % stance leg
+        L1 = 1.05; % swing leg
 		alpha1 = (45/180)*pi;
 		phi = 0.1;
 		q0 = [0 0 0.1 0 0 0];
@@ -17,6 +18,7 @@ classdef RimlessPlant<handle
 		M
 		h
 		N
+		beta1 % When standstill the angle of stance leg
 	end
 	properties
 		T;
@@ -30,6 +32,11 @@ classdef RimlessPlant<handle
 				obj.q = q;
 				obj.simulation_time = simulation_time;
 			end
+		end
+
+		function beta1 = get.beta1(obj)
+			L2 = sqrt(obj.L^2 + obj.L1^2 - 2*obj.L*obj.L1*cos(pi/4));
+			beta1 = pi/2 - asin(sin(pi/4)*obj.L1/L2);
 		end
 
 		function M = get.M(obj)
@@ -86,8 +93,6 @@ classdef RimlessPlant<handle
 		        
 		end
 
-
-
 		function simulate(obj, q, simulation_time)
 			if (nargin>1)
 				obj.q = q;
@@ -98,8 +103,16 @@ classdef RimlessPlant<handle
 			t_span = [0 obj.simulation_time];
 			q0 = obj.q; % set initial q
 
+			% Option choose short leg collision event
 			options = odeset('Events',@obj.collision,'RelTol',1e-12,'AbsTol',1e-12*ones(1,6),'Refine',15);
-			for step_number = 1:10
+			% Option choose 
+			% options_long = odeset('Events',@obj.long_leg_collision,'RelTol',1e-12,'AbsTol',1e-12*ones(1,6),'Refine',15);
+			
+			for stride_number = 1:10
+				% Long leg is stance leg
+			    temp = obj.L;
+			    obj.L = obj.L1;
+			    obj.L1 = temp;
 			    [T,Q] = ode45(@obj.rimless_dynamic, t_span, q0, options);
 			    t_span(1) = T(end); % Mark time
 			    time=[time;T]; % Put time calculated into the time array
@@ -108,6 +121,21 @@ classdef RimlessPlant<handle
 			    if T(end) == t_span(2) % If to the end of simulation time break
 			    	break
 			    end
+
+			    % % Short leg is stance leg
+			    % temp = obj.L;
+			    % obj.L = obj.L1;
+			    % obj.L1 = temp;
+			    % [T,Q] = ode45(@obj.rimless_dynamic, t_span, q0, options_long);
+			    % t_span(1) = T(end);
+			    % time=[time;T];
+			    % result=[result;Q];
+			    % q0 = obj.change(Q(end,:));
+			    % if T(end) == t_span(2) % If to the end of simulation time break
+			    % 	break
+			    % end
+
+
 			end
 			ii = 1;
 			for i = 1:length(time) % Select the appropriate time
@@ -121,12 +149,20 @@ classdef RimlessPlant<handle
 			obj.Q = Result;
 		end
 
+
 		function [value, isterminal, direction] = collision(obj,t,q)
 			% value = obj.L*cos(obj.q(3)) + 2*obj.L*sin(obj.alpha1/2)*sin(obj.phi) - obj.L*cos(obj.alpha1-obj.q(3));
-			value = (obj.alpha1/2 + obj.phi) - obj.q(3);
+			value = (obj.beta1 + obj.phi) - obj.q(3);
 			isterminal = 1;
 			direction = -1;	
 		end
+
+
+		% function [value, isterminal, direction] = long_leg_collision(obj, t, q)
+		% 	value = (obj.alpha1/2 + )
+		% end
+
+
 
 		function playback(obj)
 			len = length(obj.T);
@@ -135,23 +171,23 @@ classdef RimlessPlant<handle
 			for i=1:len
 			    x0(i) = obj.Q(i,1)+obj.L*sin(obj.Q(i,3));  % x position of central of rimless wheel
 			    x(i,1) = obj.Q(i,1); % obj.The stance leg x position
-			    x(i,2) = x0(i)+obj.L*sin(obj.alpha1-obj.Q(i,3)); 
+			    x(i,2) = x0(i)+obj.L1*sin(obj.alpha1-obj.Q(i,3)); 
 			    x(i,3) = x0(i)+obj.L*sin(2*obj.alpha1-obj.Q(i,3));
-			    x(i,4) = x0(i)+obj.L*sin(3*obj.alpha1-obj.Q(i,3));
+			    x(i,4) = x0(i)+obj.L1*sin(3*obj.alpha1-obj.Q(i,3));
 			    x(i,5) = x0(i)+obj.L*sin(4*obj.alpha1-obj.Q(i,3));
-			    x(i,6) = x0(i)-obj.L*sin(3*obj.alpha1+obj.Q(i,3));
+			    x(i,6) = x0(i)-obj.L1*sin(3*obj.alpha1+obj.Q(i,3));
 			    x(i,7) = x0(i)-obj.L*sin(2*obj.alpha1+obj.Q(i,3));
-			    x(i,8) = x0(i)-obj.L*sin(obj.alpha1+obj.Q(i,3));
+			    x(i,8) = x0(i)-obj.L1*sin(obj.alpha1+obj.Q(i,3));
 			    
 			    y0(i) = obj.Q(i,2)+obj.L*cos(obj.Q(i,3));
 			    y(i,1) = obj.Q(i,2);
-			    y(i,2) = y0(i)-obj.L*cos(obj.alpha1-obj.Q(i,3));
+			    y(i,2) = y0(i)-obj.L1*cos(obj.alpha1-obj.Q(i,3));
 			    y(i,3) = y0(i)-obj.L*cos(2*obj.alpha1-obj.Q(i,3));
-			    y(i,4) = y0(i)-obj.L*cos(3*obj.alpha1-obj.Q(i,3));
+			    y(i,4) = y0(i)-obj.L1*cos(3*obj.alpha1-obj.Q(i,3));
 			    y(i,5) = y0(i)-obj.L*cos(4*obj.alpha1-obj.Q(i,3));
-			    y(i,6) = y0(i)-obj.L*cos(3*obj.alpha1+obj.Q(i,3));
+			    y(i,6) = y0(i)-obj.L1*cos(3*obj.alpha1+obj.Q(i,3));
 			    y(i,7) = y0(i)-obj.L*cos(2*obj.alpha1+obj.Q(i,3));
-			    y(i,8) = y0(i)-obj.L*cos(obj.alpha1+obj.Q(i,3));
+			    y(i,8) = y0(i)-obj.L1*cos(obj.alpha1+obj.Q(i,3));
 			end
 			figure(4)
 
