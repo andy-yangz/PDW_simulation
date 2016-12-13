@@ -4,7 +4,7 @@ classdef RimlessPlant<handle
 		m = 1.0; % Mass
 		I = 0.1; % Moment of Inertia
         L = 1; % stance leg
-        L1 = 1.05; % swing leg
+        L1 = 1.01; % swing leg
 		alpha1 = (45/180)*pi;
 		phi = 0.1;
 		q0 = [0 0 0.1 0 0 0];
@@ -23,6 +23,7 @@ classdef RimlessPlant<handle
 	properties
 		T;
 		Q;
+		collision_times;
 	end
 
 	methods
@@ -100,6 +101,7 @@ classdef RimlessPlant<handle
 			end
 			time = [];
 			result = [];
+			collision_times = [];
 			t_span = [0 obj.simulation_time];
 			q0 = obj.q; % set initial q
 
@@ -108,20 +110,23 @@ classdef RimlessPlant<handle
 			% Option choose 
 			% options_long = odeset('Events',@obj.long_leg_collision,'RelTol',1e-12,'AbsTol',1e-12*ones(1,6),'Refine',15);
 			
+			L0 = [obj.L, obj.L1]; % Store initial value 
+
 			for stride_number = 1:10
 				% Long leg is stance leg
-			    temp = obj.L;
-			    obj.L = obj.L1;
-			    obj.L1 = temp;
+
 			    [T,Q] = ode45(@obj.rimless_dynamic, t_span, q0, options);
 			    t_span(1) = T(end); % Mark time
+			    collision_times = [collision_times;T(end)];
 			    time=[time;T]; % Put time calculated into the time array
 			    result=[result;Q]; % Put calculated result into the result array
 			    q0 = obj.change(Q(end,:));   % Q(nt) is the last term of condition claculated, which means the condition just before collision
 			    if T(end) == t_span(2) % If to the end of simulation time break
 			    	break
 			    end
-
+			    temp = obj.L;
+			    obj.L = obj.L1;
+			    obj.L1 = temp;
 			    % % Short leg is stance leg
 			    % temp = obj.L;
 			    % obj.L = obj.L1;
@@ -147,6 +152,9 @@ classdef RimlessPlant<handle
 			end
 			obj.T = Time;
 			obj.Q = Result;
+			obj.collision_times = collision_times;
+			obj.L = L0(1);
+			obj.L1 = L0(2);
 		end
 
 
@@ -168,7 +176,14 @@ classdef RimlessPlant<handle
 			len = length(obj.T);
 			x=zeros(len,8);
 			y=zeros(len,8);
+			collision_index = 1;
 			for i=1:len
+				if obj.T(i) == obj.collision_times(collision_index)
+				    temp = obj.L;
+				    obj.L = obj.L1;
+				    obj.L1 = temp;
+				    collision_index = collision_index+1;
+				end
 			    x0(i) = obj.Q(i,1)+obj.L*sin(obj.Q(i,3));  % x position of central of rimless wheel
 			    x(i,1) = obj.Q(i,1); % obj.The stance leg x position
 			    x(i,2) = x0(i)+obj.L1*sin(obj.alpha1-obj.Q(i,3)); 
