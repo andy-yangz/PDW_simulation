@@ -1,14 +1,14 @@
-classdef RimlessPlant<handle
+classdef RimlessDFPlant<handle
 	
 	properties (SetAccess = private)
 		m = 1.0; % Mass
 		I = 0.1; % Moment of Inertia
-        L = 1; % stance leg
-        L1 = 1.1; % swing leg
+        Leg1 = LegPlant; % Stance Leg
+        Leg2 = LegPlant('arc','0.25');
 		alpha1 = (45/180)*pi;
-		phi = 0.2;
-		q0 = [0 0 0.1 0 0 0];
-		q = [0 0 0.1 0 0 0];
+		phi = 0.1;
+		q0 = [0 0 0.1 0 0 0]';
+		q = [0 0 0.1 0 0 0]';
 		simulation_time = 5;
 	end
 	properties (Constant)
@@ -18,7 +18,7 @@ classdef RimlessPlant<handle
 		M
 		h
 		N
-		beta1 % When standstill the angle of stance leg
+		% beta1 % When standstill the angle of stance 
 	end
 	properties
 		T;
@@ -35,40 +35,45 @@ classdef RimlessPlant<handle
 			end
 		end
 
-		function beta1 = get.beta1(obj)
-			L2 = sqrt(obj.L^2 + obj.L1^2 - 2*obj.L*obj.L1*cos(pi/4));
-			beta1 = pi/2 - asin(sin(pi/4)*obj.L1/L2);
-		end
-
 		function M = get.M(obj)
 			M = zeros(3,3); 
 			M(1,1) = obj.m;
 			M(1,2) = 0;
-			M(1,3) = obj.m*obj.L*cos(obj.q(3)); % obj.q3 is theta pitch angle
+			M(1,3) = obj.m*obj.Leg1.L*cos(obj.q(3)); % obj.q3 is theta pitch angle
 			M(2,1) = 0;
 			M(2,2) = obj.m;
-			M(2,3) = -obj.L*obj.m*sin(obj.q(3));
-			M(3,1) = obj.L*obj.m*cos(obj.q(3));
-			M(3,2) = -obj.L*obj.m*sin(obj.q(3));
-			M(3,3) = obj.I+obj.m*obj.L^2;
+			M(2,3) = -obj.Leg1.L*obj.m*sin(obj.q(3));
+			M(3,1) = obj.Leg1.L*obj.m*cos(obj.q(3));
+			M(3,2) = -obj.Leg1.L*obj.m*sin(obj.q(3));
+			M(3,3) = obj.I+obj.m*obj.Leg1.L^2;
 		end
 
 		function h = get.h(obj)
 			h = zeros(3,1);
-			h(1,1) = -obj.q(6)^2*obj.L*obj.m*sin(obj.q(3)); % obj.q6 is theta dot
-			h(2,1) = obj.m*(obj.g-obj.q(6)^2*obj.L*cos(obj.q(3)));
-			h(3,1) = -obj.m*obj.g*obj.L*sin(obj.q(3));
+			h(1,1) = -obj.q(6)^2*obj.Leg1.L*obj.m*sin(obj.q(3)); % obj.q6 is theta dot
+			h(2,1) = obj.m*(obj.g-obj.q(6)^2*obj.Leg1.L*cos(obj.q(3)));
+			h(3,1) = -obj.m*obj.g*obj.Leg1.L*sin(obj.q(3));
 
 		end
 
 		function N = get.N(obj)
+			if obj.Leg1.form == 'point'
+			    J = [ 1 0 0 ;
+			          0 1 0];
+			    J_dot = zeros(2,3);
+			elseif obj.Leg1.form == 'arc'
+				J = [1 0 obj.Leg1.R*(cos(obj.q(3)+obj.alpha1/2)-1);
+					 0 1 -obj.Leg1.R*sin(obj.q(3)+obj.alpha1/2)];
+				J_dot = [0 0 -obj.R*sin(obj.q(3)+obj.alpha1/2)*obj.q(6);
+						 0 0 -obj.R*cos(obj.q(3)+obj.alpha1/2)*obj.q(6)];
+			end
 
-		    J = [ 1 0 0 ;
-		          0 1 0];
-		    lambda = inv(J*inv(obj.M)*J')*(J*inv(obj.M)*obj.h);
+		    lambda = inv(J*inv(obj.M)*J')*(J*inv(obj.M)*obj.h - ...
+		    		J_dot*obj.q(4:6));
 		    N = J'*lambda;
 		    
 		end
+
 
 		function dq = rimless_dynamic(obj,t,q)
 			obj.q = q;
@@ -81,12 +86,12 @@ classdef RimlessPlant<handle
 		function q0 = change(obj, Q)
 		% Change legs   
 
-		    Ji = [ 1 0 obj.L*cos(Q(3))-obj.L1*cos(obj.alpha1-Q(3)) ;
-		           0 1 -obj.L*sin(Q(3))-obj.L1*sin(obj.alpha1-Q(3)) ];
+		    Ji = [ 1 0 obj.Leg1.L*cos(Q(3))-obj.Leg1.Leg2.L*cos(obj.alpha1-Q(3)) ;
+		           0 1 -obj.Leg1.L*sin(Q(3))-obj.Leg1.Leg2.L*sin(obj.alpha1-Q(3)) ];
 		    Qp = (eye(3) - inv(obj.M)*Ji' * inv(Ji*inv(obj.M) * Ji') * Ji ) * Q(4:6)'; % Qplus 
 		    
-		    q0(1) = Q(1)+obj.L*sin(Q(3))+obj.L1*sin(obj.alpha1-Q(3)); % Change legs
-		    q0(2) = Q(2)+obj.L*cos(Q(3))-obj.L1*cos(obj.alpha1-Q(3)); % Change stance leg to swing leg
+		    q0(1) = Q(1)+obj.Leg1.L*sin(Q(3))+obj.Leg1.Leg2.L*sin(obj.alpha1-Q(3)); % Change legs
+		    q0(2) = Q(2)+obj.Leg1.L*cos(Q(3))-obj.Leg1.Leg2.L*cos(obj.alpha1-Q(3)); % Change stance leg to swing leg
 		    q0(3) = Q(3)-obj.alpha1; % Positive direction is counterclockwise, 2theta = alpha
 		    q0(4) = 0;
 		    q0(5) = 0;
@@ -128,18 +133,6 @@ classdef RimlessPlant<handle
 			    obj.L = obj.L1;
 			    obj.L1 = temp;
 
-			    % % Short leg is stance leg
-			    % temp = obj.L;
-			    % obj.L = obj.L1;
-			    % obj.L1 = temp;
-			    % [T,Q] = ode45(@obj.rimless_dynamic, t_span, q0, options_long);
-			    % t_span(1) = T(end);
-			    % time=[time;T];
-			    % result=[result;Q];
-			    % q0 = obj.change(Q(end,:));
-			    % if T(end) == t_span(2) % If to the end of simulation time break
-			    % 	break
-			    % end
 			end
 			ii = 1;
 			for i = 1:length(time) % Select the appropriate time
