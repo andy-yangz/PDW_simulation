@@ -6,12 +6,13 @@ classdef SliderPlant<handle
 		m1 = 1.0; 
 		m2 = 1.0;
 		a = 0.3;
-		b = 0.2;
+		variable_names = []
 		R = 1.0243;
 		I1 = 0.1; 
 		I2 = 0.1;
 		%Control parameter
-		S = [0 0 1 -1]';
+		S = [0 0 1 -1 0;
+			 0 0 0 0 1]';
 
 	end
 	properties (Constant)
@@ -22,17 +23,16 @@ classdef SliderPlant<handle
 		h 
 		N % Right side of equation
 		u % Control input
-		y % Control output
-		dy
 
 	end
 	properties
-		q0 = [0 0 pi/6 0 0 0 0 0]';
-		q = [0 0 pi/6 0 0 0 0 0]'; % x,z,th1,th2
-		t = 0;
+		q0 = [0 0 pi/6 0 0.2 0 0 0 0 0]';
+		q = [0 0 pi/6 0 0.2 0 0 0 0 0]'; % x,z,th1,th2,b, dx, dz, dth1, dth2, db
+		t = 0; % t for control input
 		simulation_time = 5;
 		T; % Time record
 		Q; % State record
+		% b = 0.2;
 	end
 
 	methods
@@ -47,89 +47,123 @@ classdef SliderPlant<handle
 
 
 		function M = get.M(obj)
-			M = zeros(4,4);
+			M = zeros(5,5);
 			M(1,1) = obj.m1+obj.m2;
 			M(1,2) = 0;
 			M(1,3) = obj.a*(obj.m1+obj.m2)*cos(obj.q(3));
-			M(1,4) = -obj.b*obj.m2*cos(obj.q(4));
+			M(1,4) = -obj.q(5)*obj.m2*cos(obj.q(4));
+			M(1,5) = -obj.m2*sin(obj.q(4));
 			M(2,1) = 0;
 			M(2,2) = obj.m1+obj.m2;
 			M(2,3) = -obj.a*(obj.m1+obj.m2)*sin(obj.q(3));
-			M(2,4) = obj.b*obj.m2*sin(obj.q(4));
+			M(2,4) = obj.q(5)*obj.m2*sin(obj.q(4));
+			M(2,5) = -obj.m2*cos(obj.q(4));
 			M(3,1) = obj.a*(obj.m1+obj.m2)*cos(obj.q(3));
 			M(3,2) = -obj.a*(obj.m1+obj.m2)*sin(obj.q(3));
 			M(3,3) = obj.I1+obj.a^2*(obj.m1+obj.m2);
-			M(3,4) = -obj.a*obj.b*obj.m2*cos(obj.q(3)-obj.q(4));
-			M(4,1) = -obj.b*obj.m2*cos(obj.q(4));
-			M(4,2) = obj.b*obj.m2*sin(obj.q(4));
-			M(4,3) = -obj.a*obj.b*obj.m2*cos(obj.q(3)-obj.q(4));
-			M(4,4) = obj.I2+obj.b^2*obj.m2;
+			M(3,4) = -obj.a*obj.q(5)*obj.m2*cos(obj.q(3)-obj.q(4));
+			M(3,5) = obj.a*obj.m2*sin(obj.q(3)-obj.q(4));
+			M(4,1) = -obj.q(5)*obj.m2*cos(obj.q(4));
+			M(4,2) = obj.q(5)*obj.m2*sin(obj.q(4));
+			M(4,3) = -obj.a*obj.q(5)*obj.m2*cos(obj.q(3)-obj.q(4));
+			M(4,4) = obj.I2+obj.q(5)^2*obj.m2;
+			M(4,5) = 0;
+			M(5,1) = -obj.m2*sin(obj.q(4));
+			M(5,2) = -obj.m2*cos(obj.q(4));
+			M(5,3) = obj.a*obj.m2*sin(obj.q(3)-obj.q(4));
+			M(5,4) = 0;
+			M(5,5) = obj.m2;
 		end
 
 		function h = get.h(obj)
 
-			h = zeros(4,1);
-			h(1,1) = -obj.a*obj.q(7)^2*(obj.m1+obj.m2)*sin(obj.q(3)) + obj.b*obj.q(8)^2*obj.m2*sin(obj.q(4));
-			h(2,1) = (obj.m1+obj.m2)*(obj.g-obj.a*obj.q(7)^2*cos(obj.q(3))) + obj.b*obj.q(8)^2*obj.m2*cos(obj.q(4));
-			h(3,1) = -obj.a*obj.g*(obj.m1+obj.m2)*sin(obj.q(3))+obj.b*obj.q(7)^2*obj.m2*sin(obj.q(3)-obj.q(4));
-			h(4,1) = obj.b*obj.m2*(obj.a*obj.q(7)^2*sin(obj.q(3)-obj.q(4)) + obj.g*sin(obj.q(4)));
+			h = zeros(5,1);
+			h(1,1) = - 2*obj.q(10)*obj.q(9)*obj.m2*cos(obj.q(4)) ...
+			         - obj.a*obj.q(8)^2*(obj.m1+obj.m2)*sin(obj.q(3)) ...
+			         + obj.q(5)*obj.q(9)^2*obj.m2*sin(obj.q(4));
+			h(2,1) = (obj.m1+obj.m2)*(obj.g-obj.a*obj.q(8)^2*cos(obj.q(3))) ...
+			         + obj.q(5)*obj.q(9)^2*obj.m2*cos(obj.q(4)) ...
+			         + 2*obj.q(10)*obj.q(9)*obj.m2*sin(obj.q(4));
+			h(3,1) = -obj.a*(obj.g*(obj.m1+obj.m2)*sin(obj.q(3)) ...
+				             + obj.q(5)*obj.q(9)^2*obj.m2*sin(obj.q(3)-obj.q(4)) ...
+				             + 2*obj.q(10)*obj.q(9)*obj.m2*cos(obj.q(3)-obj.q(4)));
+			h(4,1) = obj.q(5)*obj.m2*(obj.a*obj.q(8)^2*sin(obj.q(3)-obj.q(4)) ...
+								   + obj.g*sin(obj.q(4)) ...
+								   + 2*obj.q(10)*obj.q(9));
+			h(5,1) = -obj.m2*(obj.q(5)*obj.q(9)^2 ...
+				              - obj.a*obj.q(8)^2*cos(obj.q(3)-obj.q(4)) ...
+				              + obj.g*cos(obj.q(4)));
 
 		end
 
 		function N = get.N(obj)
 
-		    J = [ 1 0 obj.R*(cos(obj.q(3))-1) 0;
-		          0 1 -obj.R*sin(obj.q(3)) 0];
-		    J_dot = [0 0 -obj.R*sin(obj.q(3))*obj.q(7) 0;
-		    		0 0 -obj.R*cos(obj.q(3))*obj.q(7) 0];
-		    lambda = inv(J*inv(obj.M)*J')*(J*inv(obj.M)*(obj.h-obj.S*obj.u)-J_dot*obj.q(5:8));
+		    J = [ 1 0 obj.R*(cos(obj.q(3))-1) 0 0;
+		          0 1 -obj.R*sin(obj.q(3)) 0 0];
+		    J_dot = [0 0 -obj.R*sin(obj.q(3))*obj.q(8) 0 0;
+		    		0 0 -obj.R*cos(obj.q(3))*obj.q(8) 0 0];
+		    lambda = inv(J*inv(obj.M)*J')*(J*inv(obj.M)*(obj.h-obj.S*obj.u) ...
+		    	     -J_dot*obj.q(6:10));
 		    N = J'*lambda + obj.S*obj.u;
 		end
 
-		function y = get.y(obj)
-			y = obj.q(3) - obj.q(4);
-		end
-
-		function dy = get.dy(obj)
-			dy = obj.q(7) - obj.q(8);
-		end
 
 		function u = get.u(obj)
 			% Input parameters
-			J = [ 1 0 obj.R*(cos(obj.q(3))-1) 0;
-		          0 1 -obj.R*sin(obj.q(3)) 0];
-		    J_dot = [0 0 -obj.R*sin(obj.q(3))*obj.q(7) 0;
-		    		0 0 -obj.R*cos(obj.q(3))*obj.q(7) 0];
-			Am = 0.8; %Amplitude
-			T = 0.5; %Periodic time
+			J = [ 1 0 obj.R*(cos(obj.q(3))-1) 0 0;
+		          0 1 -obj.R*sin(obj.q(3)) 0 0];
+		    J_dot = [0 0 -obj.R*sin(obj.q(3))*obj.q(8) 0 0;
+		    		0 0 -obj.R*cos(obj.q(3))*obj.q(8) 0 0];
+
+			y  = [obj.q(3) - obj.q(4);
+					obj.q(5)];
+			dy = [obj.q(8) - obj.q(9);
+					obj.q(10);];
+
+			Am1 = 0.5; %Amplitude of y1
+			Am2 = 0.2;
+			T = 1; %Periodic time
 			omega = 2*pi/T;
-			yd = Am*sin(omega*obj.t);
-			dyd = Am*omega*cos(omega*obj.t);
-			ddyd = -Am*omega^2*sin(omega*obj.t);
-			Kp = 20;
+
+			yd = [Am1*sin(omega*obj.t);
+					Am2*sin(omega/2*obj.t)];
+			dyd = [Am1*omega*cos(omega*obj.t);
+					Am2*omega*cos(omega/2*obj.t)];
+			ddyd = [-Am1*omega^2*sin(omega/2*obj.t);
+					-Am2*omega^2*sin(omega/2*obj.t)];
+			% yd = [Am1*sin(omega*obj.t);
+			% 		0.2];
+			% dyd = [Am1*omega*cos(omega*obj.t);
+			% 		0];
+			% ddyd = [-Am1*omega^2*sin(omega*obj.t);
+			% 		0];
+
+			Kp = 25;
 			Kd = 10;
-			v = ddyd+Kd*(dyd-obj.dy)+Kp*(yd-obj.y);
+			v = ddyd+Kd*(dyd-dy)+Kp*(yd-y);
 			X = J*inv(obj.M)*J';
-			Y = (eye(4)-J'*inv(X)*J*inv(obj.M));
+			Y = (eye(5)-J'*inv(X)*J*inv(obj.M));
 			A = obj.S'*inv(obj.M)*Y*obj.S;
-			B = obj.S'*inv(obj.M)*(Y*obj.h+J'*inv(X)*J_dot*obj.q(5:8));
+			B = obj.S'*inv(obj.M)*(Y*obj.h+J'*inv(X)*J_dot*obj.q(6:10));
 			u = inv(A)*(v+B);
 			% u = 4*sin(obj.t*pi);
 		end
+
 		function dq = slider_dynamic(obj,t,q)
 			obj.q = q;
 			obj.t = t;
-			dq = zeros(8,1);
-			dq(1:4,1) = q(5:8);
-			dq(5:8,1) = inv(obj.M)*(obj.N-obj.h);
+			dq = zeros(10,1);
+			dq(1:5,1) = q(6:10);
+			dq(6:10,1) = inv(obj.M)*(obj.N-obj.h);
 		end
+
 
 		function simulate(obj, q, simulation_time)
 			if (nargin>1)
 				obj.q = q;
 				obj.simulation_time = simulation_time;
 			end
-			options = odeset('RelTol',1e-12,'AbsTol',1e-12*ones(1,8),'Refine',15);
+			options = odeset('RelTol',1e-12,'AbsTol',1e-12*ones(1,10),'Refine',15);
 			[T,Q] = ode45(@obj.slider_dynamic,[0 obj.simulation_time],obj.q,options);
 			ii = 1;
 			for i = 1:length(T) % Select the appropriate time
@@ -139,8 +173,8 @@ classdef SliderPlant<handle
 			        ii = ii + 1;
 			    end
 			end
-			obj.T = Time;
 
+			obj.T = Time;
 			obj.Q = Result;
 		end
 
@@ -162,8 +196,8 @@ classdef SliderPlant<handle
 			    y(i,4) = y(i,2)-obj.R;
 			    x(i,5) = x(i,1)+obj.a*sin(obj.Q(i,3));
 			    y(i,5) = y(i,1)+obj.a*cos(obj.Q(i,3));
-			    x(i,6) = x(i,5)-obj.b*sin(obj.Q(i,4));
-			    y(i,6) = y(i,5)-obj.b*cos(obj.Q(i,4));
+			    x(i,6) = x(i,5)-obj.Q(i,5)*sin(obj.Q(i,4));
+			    y(i,6) = y(i,5)-obj.Q(i,5)*cos(obj.Q(i,4));
 
 			    angles(i,1) = 5*pi/4-obj.Q(i,3); % Start angle of below arc 
 			    angles(i,2) = angles(i,1)+pi/2; % End angle
@@ -178,7 +212,7 @@ classdef SliderPlant<handle
 			t2 = linspace(angles(1,3),angles(1,4));
 			x2 = obj.R*cos(t2) + x(1,3);
 			y2 = obj.R*sin(t2) + y(1,3);
-			ground = plot([obj.q0(1)-5, obj.q0(1)+5],[obj.q0(2)-obj.R*(1-cos(obj.q0(3))),obj.q0(2)-obj.R*(1-cos(obj.q0(3)))],'k','LineWidth',2);hold on;
+			ground = plot([obj.q0(1)-5, obj.q0(1)+5],[y(1,4),y(1,4)],'k','LineWidth',2);hold on;
 			below_arc = fill(x1,y1,'y');hold on;
 			upper_arc = fill(x2,y2,'y'); hold on;
 			contact_point = plot(x(1,4),y(1,4),'ro','MarkerFaceColor','r');
@@ -215,6 +249,11 @@ classdef SliderPlant<handle
 			    % end
 			    % ii = ii+1;
 			end
+		end
+
+		function plot_figures(obj)
+			figure(99)
+
 		end
 
 	end
