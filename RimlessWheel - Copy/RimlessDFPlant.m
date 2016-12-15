@@ -212,16 +212,26 @@ classdef RimlessDFPlant<handle
 			    x_c(i,1) = x(i,1)+0.25*sin(angle1);
 			    x_c(i,2) = x0(i)+l*sin(2*obj.alpha1-obj.Q(i,3) + 0.1234);
 			    x_c(i,3) = x0(i)+l*sin(4*obj.alpha1-obj.Q(i,3) + 0.1234);
-			    x_c(i,4) = x0(i)-l*sin(2*obj.alpha1+obj.Q(i,3) + 0.1234);
+			    x_c(i,4) = x0(i)+l*sin(6*obj.alpha1+obj.Q(i,3) + 0.1234);
 
 			    y_c(i,1) = y(i,1)+0.25*cos(angle1);
 			    y_c(i,2) = y0(i)-l*cos(2*obj.alpha1-obj.Q(i,3) + 0.1234);
 			    y_c(i,3) = y0(i)-l*cos(4*obj.alpha1-obj.Q(i,3) + 0.1234);
-			    y_c(i,4) = y0(i)-l*cos(2*obj.alpha1+obj.Q(i,3) + 0.1234);
+			    y_c(i,4) = y0(i)-l*cos(6*obj.alpha1-obj.Q(i,3) + 0.1234);
 
 			    t1 = linspace(3*pi/2-angle1, 11*pi/6-angle1)';
 			    x_f(:,1,i) = x_c(i,1) + 0.25*cos(t1);
-			    y_f(:,1,i) = y_c(i,1) + 0.25*sin(t1);			    
+			    y_f(:,1,i) = y_c(i,1) + 0.25*sin(t1);
+				
+				x_f(:,2,i) = x_c(i,2) + 0.25*cos(t1+2*obj.alpha1);
+				y_f(:,2,i) = y_c(i,2) + 0.25*sin(t1+2*obj.alpha1);
+
+				x_f(:,3,i) = x_c(i,3) + 0.25*cos(t1+4*obj.alpha1);
+				y_f(:,3,i) = y_c(i,3) + 0.25*sin(t1+4*obj.alpha1);
+
+				x_f(:,4,i) = x_c(i,4) + 0.25*cos(t1+6*obj.alpha1);
+				y_f(:,4,i) = y_c(i,4) + 0.25*sin(t1+6*obj.alpha1);
+
 			    % if obj.Leg1.form == 'arc':
 			    % 	t = linspace()
 			end
@@ -236,8 +246,12 @@ classdef RimlessDFPlant<handle
 			leg_48 = plot([x(1,4) x(1,8)],[y(1,4) y(1,8)],'b','linewidth',2);hold on; % Draw 4 and 8 legs
 			leg_5 = plot([x(1,5) x0(1)],[y(1,5) y0(1)],'b','linewidth',2);hold on;  % Draw 5 leg
 
-			foot_coc = plot(x_c(1,:),y_c(1,:),'ro');
+			% Plot four feet
+			% foot_coc = plot(x_c(1,:),y_c(1,:),'ro');	
 			foot1 = fill(x_f(:,1,1), y_f(:,1,1),'k');
+			foot2 = fill(x_f(:,2,1), y_f(:,2,1),'k');
+			foot3 = fill(x_f(:,3,1), y_f(:,3,1),'k');
+			foot4 = fill(x_f(:,4,1), y_f(:,4,1),'k');
 			axis equal;
 			 % set(gca,'drawmode','fast');
 			ax = gca;
@@ -253,7 +267,11 @@ classdef RimlessDFPlant<handle
 			    set(leg_48,'Xdata',[x(i,4) x(i,8)],'Ydata',[y(i,4) y(i,8)]);
 			    set(leg_5,'Xdata',[x(i,5) x0(i)],'Ydata',[y(i,5) y0(i)]);
 			    set(foot1,'Vertices', [x_f(:,1,i), y_f(:,1,i)]);
-			    set(foot_coc,'Xdata',x_c(i,:),'Ydata',y_c(i,:));
+			    set(foot2,'Vertices', [x_f(:,2,i), y_f(:,2,i)]);
+			    set(foot3,'Vertices', [x_f(:,3,i), y_f(:,3,i)]);
+			    set(foot4,'Vertices', [x_f(:,4,i), y_f(:,4,i)]);
+
+			    % set(foot_coc,'Xdata',x_c(i,:),'Ydata',y_c(i,:));
 
 			    title(sprintf('Time = %f[sec]',obj.T(i)),'Color','w');
 			    drawnow;
