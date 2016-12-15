@@ -63,16 +63,16 @@ classdef RimlessDFPlant<handle
 		end
 
 		function N = get.N(obj)
-			% if strcmp(obj.Leg1.form, 'point')
+			if strcmp(obj.Leg1.form, 'point')
 			    J = [ 1 0 0 ;
 			          0 1 0];
 			    J_dot = zeros(2,3);
-			% elseif strcmp(obj.Leg1.form, 'arc')
-			% 	J = [1 0 obj.Leg1.R*(cos(obj.q(3)+obj.alpha1/2)-1);
-			% 		 0 1 -obj.Leg1.R*sin(obj.q(3)+obj.alpha1/2)];
-			% 	J_dot = [0 0 -obj.Leg1.R*sin(obj.q(3)+obj.alpha1/2)*obj.q(6);
-			% 			 0 0 -obj.Leg1.R*cos(obj.q(3)+obj.alpha1/2)*obj.q(6)];
-			% end
+			elseif strcmp(obj.Leg1.form, 'arc')
+				J = [1 0 obj.Leg1.R*(cos(obj.q(3)+obj.alpha1/2)-1);
+					 0 1 -obj.Leg1.R*sin(obj.q(3)+obj.alpha1/2)];
+				J_dot = [0 0 -obj.Leg1.R*sin(obj.q(3)+obj.alpha1/2)*obj.q(6);
+						 0 0 -obj.Leg1.R*cos(obj.q(3)+obj.alpha1/2)*obj.q(6)];
+			end
 		    lambda = inv(J*inv(obj.M)*J')*(J*inv(obj.M)*obj.h - ...
 		    		J_dot*obj.q(4:6));
 		    N = J'*lambda;
@@ -134,12 +134,13 @@ classdef RimlessDFPlant<handle
 			    [T,Q] = ode45(@obj.rimless_dynamic, t_span, q0, options);
 			    t_span(1) = T(end); % Mark time
 			    fprintf('%f sec hit ground.\n',T(end));
-			    collision_times = [collision_times;T(end)];
 			    time=[time;T]; % Put time calculated into the time array
 			    result=[result;Q]; % Put calculated result into the result array
 			    q0 = obj.change(Q(end,:));   % Q(nt) is the last term of condition claculated, which means the condition just before collision
 			    if T(end) == t_span(2) % If to the end of simulation time break
 			    	break
+			    else
+				    collision_times = [collision_times;T(end)];
 			    end
 			    temp = obj.Leg1;
 			    obj.Leg1 = obj.Leg2;
@@ -148,7 +149,7 @@ classdef RimlessDFPlant<handle
 			end
 			ii = 1;
 			for i = 1:length(time) % Select the appropriate time
-			    if time(i) >= 0.001*(ii-1) || any(abs(time(i)-collision_times(1:end-1))<1e-10)
+			    if time(i) >= 0.001*(ii-1) || any(abs(time(i)-collision_times)<1e-10)
 			        Time(ii) = time(i);
 			        Result(ii,:) = result(i,:); 
 			        ii = ii + 1;
@@ -178,13 +179,11 @@ classdef RimlessDFPlant<handle
 			collision_index = 1;
 			for i=1:len
 				% Change animation when change leg
-				if obj.T(i) == obj.collision_times(collision_index)
+				if collision_index <= length(obj.collision_times) && obj.T(i) == obj.collision_times(collision_index) 
 				    temp = obj.Leg1;
 				    obj.Leg1 = obj.Leg2;
 				    obj.Leg2 = temp;
 				    collision_index = collision_index+1;
-				    obj.Leg1.form
-				    fprintf('Change Leg');
 				end
 				% Get all critical point in rimless wheel
 			    x0(i) = obj.Q(i,1)+obj.Leg1.L*sin(obj.Q(i,3));  % x position of central of rimless wheel
