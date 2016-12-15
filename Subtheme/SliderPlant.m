@@ -6,7 +6,7 @@ classdef SliderPlant<handle
 		m1 = 1.0; 
 		m2 = 1.0;
 		a = 0.3;
-		variable_names = []
+		variable_names = {'x';'z';'th1';'th2';'b';'dx';'dz';'dth1';'dth2';'db'};
 		R = 1.0243;
 		I1 = 0.1; 
 		I2 = 0.1;
@@ -138,8 +138,8 @@ classdef SliderPlant<handle
 			% ddyd = [-Am1*omega^2*sin(omega*obj.t);
 			% 		0];
 
-			Kp = 25;
-			Kd = 10;
+			Kp = 100;
+			Kd = 20;
 			v = ddyd+Kd*(dyd-dy)+Kp*(yd-y);
 			X = J*inv(obj.M)*J';
 			Y = (eye(5)-J'*inv(X)*J*inv(obj.M));
@@ -253,6 +253,31 @@ classdef SliderPlant<handle
 
 		function plot_figures(obj)
 			figure(99)
+			var_num = length(obj.q);
+			widt = var_num/2;
+			index = 1;
+			for i = 1:2
+				for j = 1:widt
+					subplot(2,widt,index); 
+					plot(obj.T, obj.Q(:,index));
+					title(sprintf('%s vs Time', obj.variable_names{index}));
+					xlabel('Time');
+					ylabel(sprintf('%s', obj.variable_names{index}));
+					index = index+1;
+				end
+			end 
+
+			figure(101)
+			subplot(1,2,1); plot(obj.T, obj.Q(:,3)-obj.Q(:,4));
+			title('Input y1(\theta1-\theta2) vs Time');
+			xlabel('Time');
+			ylabel('y1');
+
+			subplot(1,2,2); plot(obj.T, obj.Q(:,5));
+			title('Input y2(b) vs Time');
+			xlabel('Time');
+			ylabel('y2');
+
 
 		end
 

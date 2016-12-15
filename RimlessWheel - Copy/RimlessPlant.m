@@ -4,9 +4,9 @@ classdef RimlessPlant<handle
 		m = 1.0; % Mass
 		I = 0.1; % Moment of Inertia
         L = 1; % stance leg
-        L1 = 1.01; % swing leg
+        L1 = 1.1; % swing leg
 		alpha1 = (45/180)*pi;
-		phi = 0.1;
+		phi = 0.2;
 		q0 = [0 0 0.1 0 0 0];
 		q = [0 0 0.1 0 0 0];
 		simulation_time = 5;
@@ -81,12 +81,12 @@ classdef RimlessPlant<handle
 		function q0 = change(obj, Q)
 		% Change legs   
 
-		    Ji = [ 1 0 obj.L*cos(Q(3))-obj.L*cos(obj.alpha1-Q(3)) ;
-		           0 1 -obj.L*sin(Q(3))-obj.L*sin(obj.alpha1-Q(3)) ];
+		    Ji = [ 1 0 obj.L*cos(Q(3))-obj.L1*cos(obj.alpha1-Q(3)) ;
+		           0 1 -obj.L*sin(Q(3))-obj.L1*sin(obj.alpha1-Q(3)) ];
 		    Qp = (eye(3) - inv(obj.M)*Ji' * inv(Ji*inv(obj.M) * Ji') * Ji ) * Q(4:6)'; % Qplus 
 		    
-		    q0(1) = Q(1)+obj.L*sin(Q(3))+obj.L*sin(obj.alpha1-Q(3)); % Change legs
-		    q0(2) = Q(2)+obj.L*cos(Q(3))-obj.L*cos(obj.alpha1-Q(3)); % Change stance leg to swing leg
+		    q0(1) = Q(1)+obj.L*sin(Q(3))+obj.L1*sin(obj.alpha1-Q(3)); % Change legs
+		    q0(2) = Q(2)+obj.L*cos(Q(3))-obj.L1*cos(obj.alpha1-Q(3)); % Change stance leg to swing leg
 		    q0(3) = Q(3)-obj.alpha1; % Positive direction is counterclockwise, 2theta = alpha
 		    q0(4) = 0;
 		    q0(5) = 0;
@@ -112,11 +112,11 @@ classdef RimlessPlant<handle
 			
 			L0 = [obj.L, obj.L1]; % Store initial value 
 
-			for stride_number = 1:10
+			for stride_number = 1:100
 				% Long leg is stance leg
-
 			    [T,Q] = ode45(@obj.rimless_dynamic, t_span, q0, options);
 			    t_span(1) = T(end); % Mark time
+			    fprintf('%f sec hit ground.\n',T(end));
 			    collision_times = [collision_times;T(end)];
 			    time=[time;T]; % Put time calculated into the time array
 			    result=[result;Q]; % Put calculated result into the result array
@@ -127,6 +127,7 @@ classdef RimlessPlant<handle
 			    temp = obj.L;
 			    obj.L = obj.L1;
 			    obj.L1 = temp;
+
 			    % % Short leg is stance leg
 			    % temp = obj.L;
 			    % obj.L = obj.L1;
@@ -139,17 +140,16 @@ classdef RimlessPlant<handle
 			    % if T(end) == t_span(2) % If to the end of simulation time break
 			    % 	break
 			    % end
-
-
 			end
 			ii = 1;
 			for i = 1:length(time) % Select the appropriate time
-			    if time(i) >= 0.001*(ii-1)
+			    if time(i) >= 0.001*(ii-1) || any(abs(time(i)-collision_times(1:end-1))<1e-10)
 			        Time(ii) = time(i);
 			        Result(ii,:) = result(i,:); 
 			        ii = ii + 1;
 			    end
 			end
+
 			obj.T = Time;
 			obj.Q = Result;
 			obj.collision_times = collision_times;
