@@ -3,6 +3,7 @@ classdef RimlessDFPlant<handle
 	properties (SetAccess = private)
 		m = 1.0; % Mass
 		I = 0.1; % Moment of Inertia
+		variable_names = {'x';'z';'th';'dx';'dz';'dth'};
         Leg1 = LegPlant; % Stance Leg
         Leg2 = LegPlant('arc',0.25);
         % Leg2 = LegPlant; % Stance Leg
@@ -37,8 +38,14 @@ classdef RimlessDFPlant<handle
 		end
 
 		function beta1 = get.beta1(obj)
-			L2 = sqrt(obj.Leg1.L^2 + obj.Leg2.L^2 - 2*obj.Leg1.L*obj.Leg2.L*cos(pi/4));
-			beta1 = pi/2 - asin(sin(pi/4)*obj.Leg2.L/L2);
+			if strcmp(obj.Leg1.form,'point')
+				L2 = sqrt(obj.Leg1.L^2 + obj.Leg2.L^2 - 2*obj.Leg1.L*obj.Leg2.L*cos(pi/4));
+				beta1 = pi/2 - asin(sin(pi/4)*obj.Leg2.L/L2);
+			elseif strcmp(obj.Leg1.form,'arc')
+				L2 = sqrt(0.9986^2 + obj.Leg2.L^2 - 2*0.9986*obj.Leg2.L*cos(pi/4-0.2508));
+				beta1 = pi/2 - asin(sin(pi/4-0.2508)*obj.Leg2.L/L2);
+				beta1 = beta1 + 0.2508;
+			end
 		end
 
 		function M = get.M(obj)
@@ -163,7 +170,6 @@ classdef RimlessDFPlant<handle
 			obj.Leg2 = L0(2);
 		end
 
-
 		function playback(obj)
 			len = length(obj.T);
 			x=zeros(len,8);
@@ -175,7 +181,7 @@ classdef RimlessDFPlant<handle
 
 			% l = sqrt(1^2 + 0.25^2 -2*1*0.25*cos(22.5));
 			l = 0.775;
-
+			L0 = [obj.Leg1, obj.Leg2];
 			collision_index = 1;
 			for i=1:len
 				% Change animation when change leg
@@ -207,7 +213,7 @@ classdef RimlessDFPlant<handle
 			    y(i,8) = y0(i)-obj.Leg2.L*cos(obj.alpha1+obj.Q(i,3));
 
 			    % Get critical point of foot
-			    if strcmp(obj.Leg1.form, 'arc')
+			    if strcmp(obj.Leg1.form, 'point')
 				    angle1 = obj.Q(i,3)-obj.alpha1/2-obj.phi; % Angle of foot
 				    % x_c(i,1) = x(i,1)+0.25*sin(angle1);
 				    x_c(i,1) = x0(i)+l*sin(1*obj.alpha1-obj.Q(i,3) + 0.1234);
@@ -233,7 +239,7 @@ classdef RimlessDFPlant<handle
 
 					x_f(:,4,i) = x_c(i,4) + 0.25*cos(t1+6*obj.alpha1);
 					y_f(:,4,i) = y_c(i,4) + 0.25*sin(t1+6*obj.alpha1);
-				elseif strcmp(obj.Leg1.form, 'point')
+				elseif strcmp(obj.Leg1.form, 'arc')
 					angle1 = obj.Q(i,3)+obj.alpha1/2-obj.phi;
 				    x_c(i,1) = x(i,1)+0.25*sin(angle1);
 				    x_c(i,2) = x0(i)+l*sin(2*obj.alpha1-obj.Q(i,3) + 0.1234);
@@ -258,12 +264,12 @@ classdef RimlessDFPlant<handle
 					x_f(:,4,i) = x_c(i,4) + 0.25*cos(t1+6*obj.alpha1);
 					y_f(:,4,i) = y_c(i,4) + 0.25*sin(t1+6*obj.alpha1);
 				end					
-					
-
+				
 			    % if obj.Leg1.form == 'arc':
 			    % 	t = linspace()
 			end
-
+			obj.Leg1 = L0(1);
+			obj.Leg2 = L0(2);
 			
 
 			figure(100)
@@ -305,5 +311,29 @@ classdef RimlessDFPlant<handle
 			    drawnow;
 			end
 		end
+
+		function plot_figures(obj)
+			figure(99)
+			var_num = length(obj.q);
+			widt = var_num/2;
+			index = 1;
+			for i = 1:2
+				for j = 1:widt
+					subplot(2,widt,index); 
+					plot(obj.T, obj.Q(:,index));
+					title(sprintf('%s vs Time', obj.variable_names{index}));
+					xlabel('Time');
+					ylabel(sprintf('%s', obj.variable_names{index}));
+					index = index+1;
+				end
+			end
+
+			figure(101)
+			plot(obj.Q(:,3),obj.Q(:,6));
+			title('Poincare Map \theta vs d\theta');
+			xlabel('\theta');
+			ylabel('d\theta'); 
+		end
+
 	end
 end
