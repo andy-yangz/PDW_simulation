@@ -4,7 +4,8 @@ classdef RimlessDFPlant<handle
 		m = 1.0; % Mass
 		I = 0.1; % Moment of Inertia
         Leg1 = LegPlant; % Stance Leg
-        Leg2 = LegPlant('arc','0.25');
+        % Leg2 = LegPlant('arc','0.25');
+        Leg2 = LegPlant; % Stance Leg
 		alpha1 = (45/180)*pi;
 		phi = 0.1;
 		q0 = [0 0 0.1 0 0 0]';
@@ -18,7 +19,7 @@ classdef RimlessDFPlant<handle
 		M
 		h
 		N
-		% beta1 % When standstill the angle of stance 
+		beta1 % When standstill the angle of stance 
 	end
 	properties
 		T;
@@ -33,6 +34,11 @@ classdef RimlessDFPlant<handle
 				obj.q = q;
 				obj.simulation_time = simulation_time;
 			end
+		end
+
+		function beta1 = get.beta1(obj)
+			L2 = sqrt(obj.Leg1.L^2 + obj.Leg2.L^2 - 2*obj.Leg1.L*obj.Leg2.L*cos(pi/4));
+			beta1 = pi/2 - asin(sin(pi/4)*obj.Leg2.L/L2);
 		end
 
 		function M = get.M(obj)
@@ -86,17 +92,24 @@ classdef RimlessDFPlant<handle
 		function q0 = change(obj, Q)
 		% Change legs   
 
-		    Ji = [ 1 0 obj.Leg1.L*cos(Q(3))-obj.Leg1.Leg2.L*cos(obj.alpha1-Q(3)) ;
-		           0 1 -obj.Leg1.L*sin(Q(3))-obj.Leg1.Leg2.L*sin(obj.alpha1-Q(3)) ];
+		    Ji = [ 1 0 obj.Leg1.L*cos(Q(3))-obj.Leg2.L*cos(obj.alpha1-Q(3)) ;
+		           0 1 -obj.Leg1.L*sin(Q(3))-obj.Leg2.L*sin(obj.alpha1-Q(3)) ];
 		    Qp = (eye(3) - inv(obj.M)*Ji' * inv(Ji*inv(obj.M) * Ji') * Ji ) * Q(4:6)'; % Qplus 
 		    
-		    q0(1) = Q(1)+obj.Leg1.L*sin(Q(3))+obj.Leg1.Leg2.L*sin(obj.alpha1-Q(3)); % Change legs
-		    q0(2) = Q(2)+obj.Leg1.L*cos(Q(3))-obj.Leg1.Leg2.L*cos(obj.alpha1-Q(3)); % Change stance leg to swing leg
+		    q0(1) = Q(1)+obj.Leg1.L*sin(Q(3))+obj.Leg2.L*sin(obj.alpha1-Q(3)); % Change legs
+		    q0(2) = Q(2)+obj.Leg1.L*cos(Q(3))-obj.Leg2.L*cos(obj.alpha1-Q(3)); % Change stance leg to swing leg
 		    q0(3) = Q(3)-obj.alpha1; % Positive direction is counterclockwise, 2theta = alpha
 		    q0(4) = 0;
 		    q0(5) = 0;
 		    q0(6) = Qp(3);
 		        
+		end
+
+		function [value, isterminal, direction] = collision(obj,t,q)
+			  % value = obj.L*cos(obj.q(3)) + 2*obj.L*sin(obj.alpha1/2)*sin(obj.phi) - obj.L*cos(obj.alpha1-obj.q(3));
+			value = (obj.beta1 + obj.phi) - obj.q(3);
+			isterminal = 1;
+			direction = -1;	
 		end
 
 		function simulate(obj, q, simulation_time)
@@ -115,7 +128,7 @@ classdef RimlessDFPlant<handle
 			% Option choose 
 			% options_long = odeset('Events',@obj.long_leg_collision,'RelTol',1e-12,'AbsTol',1e-12*ones(1,6),'Refine',15);
 			
-			L0 = [obj.L, obj.L1]; % Store initial value 
+			L0 = [obj.Leg1, obj.Leg2]; % Store initial value 
 
 			for stride_number = 1:100
 				% Long leg is stance leg
@@ -129,9 +142,9 @@ classdef RimlessDFPlant<handle
 			    if T(end) == t_span(2) % If to the end of simulation time break
 			    	break
 			    end
-			    temp = obj.L;
-			    obj.L = obj.L1;
-			    obj.L1 = temp;
+			    temp = obj.Leg1;
+			    obj.Leg1 = obj.Leg2;
+			    obj.Leg2 = temp;
 
 			end
 			ii = 1;
@@ -146,59 +159,76 @@ classdef RimlessDFPlant<handle
 			obj.T = Time;
 			obj.Q = Result;
 			obj.collision_times = collision_times;
-			obj.L = L0(1);
-			obj.L1 = L0(2);
+			obj.Leg1 = L0(1);
+			obj.Leg2 = L0(2);
 		end
-
-
-		function [value, isterminal, direction] = collision(obj,t,q)
-			% value = obj.L*cos(obj.q(3)) + 2*obj.L*sin(obj.alpha1/2)*sin(obj.phi) - obj.L*cos(obj.alpha1-obj.q(3));
-			value = (obj.beta1 + obj.phi) - obj.q(3);
-			isterminal = 1;
-			direction = -1;	
-		end
-
-
-		% function [value, isterminal, direction] = long_leg_collision(obj, t, q)
-		% 	value = (obj.alpha1/2 + )
-		% end
-
 
 
 		function playback(obj)
 			len = length(obj.T);
 			x=zeros(len,8);
 			y=zeros(len,8);
+			x_c = zeros(len,4);
+			y_c = zeros(len,4);
+			x_f = zeros(100,4,len); % The coordinates of four feet store in a
+			y_f = zeros(100,4,len); % 3D matrix
+
+			% l = sqrt(1^2 + 0.25^2 -2*1*0.25*cos(22.5));
+			l = 0.775;
+
 			collision_index = 1;
 			for i=1:len
+				% Change animation when change leg
 				if obj.T(i) == obj.collision_times(collision_index)
-				    temp = obj.L;
-				    obj.L = obj.L1;
-				    obj.L1 = temp;
+				    temp = obj.Leg1;
+				    obj.Leg1 = obj.Leg2;
+				    obj.Leg2 = temp;
 				    collision_index = collision_index+1;
 				end
-			    x0(i) = obj.Q(i,1)+obj.L*sin(obj.Q(i,3));  % x position of central of rimless wheel
+				% Get all critical point in rimless wheel
+			    x0(i) = obj.Q(i,1)+obj.Leg1.L*sin(obj.Q(i,3));  % x position of central of rimless wheel
 			    x(i,1) = obj.Q(i,1); % obj.The stance leg x position
-			    x(i,2) = x0(i)+obj.L1*sin(obj.alpha1-obj.Q(i,3)); 
-			    x(i,3) = x0(i)+obj.L*sin(2*obj.alpha1-obj.Q(i,3));
-			    x(i,4) = x0(i)+obj.L1*sin(3*obj.alpha1-obj.Q(i,3));
-			    x(i,5) = x0(i)+obj.L*sin(4*obj.alpha1-obj.Q(i,3));
-			    x(i,6) = x0(i)-obj.L1*sin(3*obj.alpha1+obj.Q(i,3));
-			    x(i,7) = x0(i)-obj.L*sin(2*obj.alpha1+obj.Q(i,3));
-			    x(i,8) = x0(i)-obj.L1*sin(obj.alpha1+obj.Q(i,3));
-			    
-			    y0(i) = obj.Q(i,2)+obj.L*cos(obj.Q(i,3));
-			    y(i,1) = obj.Q(i,2);
-			    y(i,2) = y0(i)-obj.L1*cos(obj.alpha1-obj.Q(i,3));
-			    y(i,3) = y0(i)-obj.L*cos(2*obj.alpha1-obj.Q(i,3));
-			    y(i,4) = y0(i)-obj.L1*cos(3*obj.alpha1-obj.Q(i,3));
-			    y(i,5) = y0(i)-obj.L*cos(4*obj.alpha1-obj.Q(i,3));
-			    y(i,6) = y0(i)-obj.L1*cos(3*obj.alpha1+obj.Q(i,3));
-			    y(i,7) = y0(i)-obj.L*cos(2*obj.alpha1+obj.Q(i,3));
-			    y(i,8) = y0(i)-obj.L1*cos(obj.alpha1+obj.Q(i,3));
-			end
-			figure(4)
+			    x(i,2) = x0(i)+obj.Leg2.L*sin(obj.alpha1-obj.Q(i,3)); 
+			    x(i,3) = x0(i)+obj.Leg1.L*sin(2*obj.alpha1-obj.Q(i,3));
+			    x(i,4) = x0(i)+obj.Leg2.L*sin(3*obj.alpha1-obj.Q(i,3));
+			    x(i,5) = x0(i)+obj.Leg1.L*sin(4*obj.alpha1-obj.Q(i,3));
+			    x(i,6) = x0(i)-obj.Leg2.L*sin(3*obj.alpha1+obj.Q(i,3));
+			    x(i,7) = x0(i)-obj.Leg1.L*sin(2*obj.alpha1+obj.Q(i,3));
+			    x(i,8) = x0(i)-obj.Leg2.L*sin(obj.alpha1+obj.Q(i,3));
 
+			    y0(i) = obj.Q(i,2)+obj.Leg1.L*cos(obj.Q(i,3));
+			    y(i,1) = obj.Q(i,2);
+			    y(i,2) = y0(i)-obj.Leg2.L*cos(obj.alpha1-obj.Q(i,3));
+			    y(i,3) = y0(i)-obj.Leg1.L*cos(2*obj.alpha1-obj.Q(i,3));
+			    y(i,4) = y0(i)-obj.Leg2.L*cos(3*obj.alpha1-obj.Q(i,3));
+			    y(i,5) = y0(i)-obj.Leg1.L*cos(4*obj.alpha1-obj.Q(i,3));
+			    y(i,6) = y0(i)-obj.Leg2.L*cos(3*obj.alpha1+obj.Q(i,3));
+			    y(i,7) = y0(i)-obj.Leg1.L*cos(2*obj.alpha1+obj.Q(i,3));
+			    y(i,8) = y0(i)-obj.Leg2.L*cos(obj.alpha1+obj.Q(i,3));
+
+			    % Get critical point of foot
+			    angle1 = obj.Q(i,3)+obj.alpha1/2-obj.phi; % Angle of foot
+
+			    x_c(i,1) = x(i,1)+0.25*sin(angle1);
+			    x_c(i,2) = x0(i)+l*sin(2*obj.alpha1-obj.Q(i,3) + 0.1234);
+			    x_c(i,3) = x0(i)+l*sin(4*obj.alpha1-obj.Q(i,3) + 0.1234);
+			    x_c(i,4) = x0(i)-l*sin(2*obj.alpha1+obj.Q(i,3) + 0.1234);
+
+			    y_c(i,1) = y(i,1)+0.25*cos(angle1);
+			    y_c(i,2) = y0(i)-l*cos(2*obj.alpha1-obj.Q(i,3) + 0.1234);
+			    y_c(i,3) = y0(i)-l*cos(4*obj.alpha1-obj.Q(i,3) + 0.1234);
+			    y_c(i,4) = y0(i)-l*cos(2*obj.alpha1+obj.Q(i,3) + 0.1234);
+
+			    t1 = linspace(3*pi/2-angle1, 11*pi/6-angle1)';
+			    x_f(:,1,i) = x_c(i,1) + 0.25*cos(t1);
+			    y_f(:,1,i) = y_c(i,1) + 0.25*sin(t1);			    
+			    % if obj.Leg1.form == 'arc':
+			    % 	t = linspace()
+			end
+
+			
+
+			figure(100)
 			slope_line = plot([-(x0(1)+5)*cos(obj.phi) (x0(end)+5)*cos(obj.phi)],[(x0(1)+5)*sin(obj.phi) -(x0(end)+5)*sin(obj.phi)],'k','linewidth',2);hold on; % Draw the slope
 			stance_leg = plot([x(1,1) x0(1)],[y(1,1) y0(1)],'r','linewidth',2.5);hold on; % Draw stance leg
 			leg_26 = plot([x(1,2) x(1,6)],[y(1,2) y(1,6)],'b','linewidth',2);hold on; % Draw 2 and 6 legs
@@ -206,6 +236,8 @@ classdef RimlessDFPlant<handle
 			leg_48 = plot([x(1,4) x(1,8)],[y(1,4) y(1,8)],'b','linewidth',2);hold on; % Draw 4 and 8 legs
 			leg_5 = plot([x(1,5) x0(1)],[y(1,5) y0(1)],'b','linewidth',2);hold on;  % Draw 5 leg
 
+			foot_coc = plot(x_c(1,:),y_c(1,:),'ro');
+			foot1 = fill(x_f(:,1,1), y_f(:,1,1),'k');
 			axis equal;
 			 % set(gca,'drawmode','fast');
 			ax = gca;
@@ -220,6 +252,8 @@ classdef RimlessDFPlant<handle
 			    set(leg_37,'Xdata',[x(i,3) x(i,7)],'Ydata',[y(i,3) y(i,7)]);
 			    set(leg_48,'Xdata',[x(i,4) x(i,8)],'Ydata',[y(i,4) y(i,8)]);
 			    set(leg_5,'Xdata',[x(i,5) x0(i)],'Ydata',[y(i,5) y0(i)]);
+			    set(foot1,'Vertices', [x_f(:,1,i), y_f(:,1,i)]);
+			    set(foot_coc,'Xdata',x_c(i,:),'Ydata',y_c(i,:));
 
 			    title(sprintf('Time = %f[sec]',obj.T(i)),'Color','w');
 			    drawnow;
