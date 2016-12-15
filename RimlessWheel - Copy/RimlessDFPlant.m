@@ -4,8 +4,8 @@ classdef RimlessDFPlant<handle
 		m = 1.0; % Mass
 		I = 0.1; % Moment of Inertia
         Leg1 = LegPlant; % Stance Leg
-        % Leg2 = LegPlant('arc','0.25');
-        Leg2 = LegPlant; % Stance Leg
+        Leg2 = LegPlant('arc',0.25);
+        % Leg2 = LegPlant; % Stance Leg
 		alpha1 = (45/180)*pi;
 		phi = 0.1;
 		q0 = [0 0 0.1 0 0 0]';
@@ -63,17 +63,16 @@ classdef RimlessDFPlant<handle
 		end
 
 		function N = get.N(obj)
-			if obj.Leg1.form == 'point'
+			% if strcmp(obj.Leg1.form, 'point')
 			    J = [ 1 0 0 ;
 			          0 1 0];
 			    J_dot = zeros(2,3);
-			elseif obj.Leg1.form == 'arc'
-				J = [1 0 obj.Leg1.R*(cos(obj.q(3)+obj.alpha1/2)-1);
-					 0 1 -obj.Leg1.R*sin(obj.q(3)+obj.alpha1/2)];
-				J_dot = [0 0 -obj.R*sin(obj.q(3)+obj.alpha1/2)*obj.q(6);
-						 0 0 -obj.R*cos(obj.q(3)+obj.alpha1/2)*obj.q(6)];
-			end
-
+			% elseif strcmp(obj.Leg1.form, 'arc')
+			% 	J = [1 0 obj.Leg1.R*(cos(obj.q(3)+obj.alpha1/2)-1);
+			% 		 0 1 -obj.Leg1.R*sin(obj.q(3)+obj.alpha1/2)];
+			% 	J_dot = [0 0 -obj.Leg1.R*sin(obj.q(3)+obj.alpha1/2)*obj.q(6);
+			% 			 0 0 -obj.Leg1.R*cos(obj.q(3)+obj.alpha1/2)*obj.q(6)];
+			% end
 		    lambda = inv(J*inv(obj.M)*J')*(J*inv(obj.M)*obj.h - ...
 		    		J_dot*obj.q(4:6));
 		    N = J'*lambda;
@@ -184,6 +183,8 @@ classdef RimlessDFPlant<handle
 				    obj.Leg1 = obj.Leg2;
 				    obj.Leg2 = temp;
 				    collision_index = collision_index+1;
+				    obj.Leg1.form
+				    fprintf('Change Leg');
 				end
 				% Get all critical point in rimless wheel
 			    x0(i) = obj.Q(i,1)+obj.Leg1.L*sin(obj.Q(i,3));  % x position of central of rimless wheel
@@ -207,30 +208,58 @@ classdef RimlessDFPlant<handle
 			    y(i,8) = y0(i)-obj.Leg2.L*cos(obj.alpha1+obj.Q(i,3));
 
 			    % Get critical point of foot
-			    angle1 = obj.Q(i,3)+obj.alpha1/2-obj.phi; % Angle of foot
+			    if strcmp(obj.Leg1.form, 'arc')
+				    angle1 = obj.Q(i,3)-obj.alpha1/2-obj.phi; % Angle of foot
+				    % x_c(i,1) = x(i,1)+0.25*sin(angle1);
+				    x_c(i,1) = x0(i)+l*sin(1*obj.alpha1-obj.Q(i,3) + 0.1234);
+				    x_c(i,2) = x0(i)+l*sin(3*obj.alpha1-obj.Q(i,3) + 0.1234);
+				    x_c(i,3) = x0(i)+l*sin(5*obj.alpha1-obj.Q(i,3) + 0.1234);
+				    x_c(i,4) = x0(i)+l*sin(7*obj.alpha1-obj.Q(i,3) + 0.1234);
 
-			    x_c(i,1) = x(i,1)+0.25*sin(angle1);
-			    x_c(i,2) = x0(i)+l*sin(2*obj.alpha1-obj.Q(i,3) + 0.1234);
-			    x_c(i,3) = x0(i)+l*sin(4*obj.alpha1-obj.Q(i,3) + 0.1234);
-			    x_c(i,4) = x0(i)+l*sin(6*obj.alpha1+obj.Q(i,3) + 0.1234);
+				    % y_c(i,1) = y(i,1)+0.25*cos(angle1);
+				    y_c(i,1) = y0(i)-l*cos(1*obj.alpha1-obj.Q(i,3) + 0.1234);				    
+				    y_c(i,2) = y0(i)-l*cos(3*obj.alpha1-obj.Q(i,3) + 0.1234);
+				    y_c(i,3) = y0(i)-l*cos(5*obj.alpha1-obj.Q(i,3) + 0.1234);
+				    y_c(i,4) = y0(i)-l*cos(7*obj.alpha1-obj.Q(i,3) + 0.1234);
 
-			    y_c(i,1) = y(i,1)+0.25*cos(angle1);
-			    y_c(i,2) = y0(i)-l*cos(2*obj.alpha1-obj.Q(i,3) + 0.1234);
-			    y_c(i,3) = y0(i)-l*cos(4*obj.alpha1-obj.Q(i,3) + 0.1234);
-			    y_c(i,4) = y0(i)-l*cos(6*obj.alpha1-obj.Q(i,3) + 0.1234);
+				    t1 = linspace(3*pi/2-angle1, 11*pi/6-angle1)';
+				    x_f(:,1,i) = x_c(i,1) + 0.25*cos(t1);
+				    y_f(:,1,i) = y_c(i,1) + 0.25*sin(t1);
+					
+					x_f(:,2,i) = x_c(i,2) + 0.25*cos(t1+2*obj.alpha1);
+					y_f(:,2,i) = y_c(i,2) + 0.25*sin(t1+2*obj.alpha1);
 
-			    t1 = linspace(3*pi/2-angle1, 11*pi/6-angle1)';
-			    x_f(:,1,i) = x_c(i,1) + 0.25*cos(t1);
-			    y_f(:,1,i) = y_c(i,1) + 0.25*sin(t1);
-				
-				x_f(:,2,i) = x_c(i,2) + 0.25*cos(t1+2*obj.alpha1);
-				y_f(:,2,i) = y_c(i,2) + 0.25*sin(t1+2*obj.alpha1);
+					x_f(:,3,i) = x_c(i,3) + 0.25*cos(t1+4*obj.alpha1);
+					y_f(:,3,i) = y_c(i,3) + 0.25*sin(t1+4*obj.alpha1);
 
-				x_f(:,3,i) = x_c(i,3) + 0.25*cos(t1+4*obj.alpha1);
-				y_f(:,3,i) = y_c(i,3) + 0.25*sin(t1+4*obj.alpha1);
+					x_f(:,4,i) = x_c(i,4) + 0.25*cos(t1+6*obj.alpha1);
+					y_f(:,4,i) = y_c(i,4) + 0.25*sin(t1+6*obj.alpha1);
+				elseif strcmp(obj.Leg1.form, 'point')
+					angle1 = obj.Q(i,3)+obj.alpha1/2-obj.phi;
+				    x_c(i,1) = x(i,1)+0.25*sin(angle1);
+				    x_c(i,2) = x0(i)+l*sin(2*obj.alpha1-obj.Q(i,3) + 0.1234);
+				    x_c(i,3) = x0(i)+l*sin(4*obj.alpha1-obj.Q(i,3) + 0.1234);
+				    x_c(i,4) = x0(i)+l*sin(6*obj.alpha1+obj.Q(i,3) + 0.1234);
 
-				x_f(:,4,i) = x_c(i,4) + 0.25*cos(t1+6*obj.alpha1);
-				y_f(:,4,i) = y_c(i,4) + 0.25*sin(t1+6*obj.alpha1);
+				    y_c(i,1) = y(i,1)+0.25*cos(angle1);
+				    y_c(i,2) = y0(i)-l*cos(2*obj.alpha1-obj.Q(i,3) + 0.1234);
+				    y_c(i,3) = y0(i)-l*cos(4*obj.alpha1-obj.Q(i,3) + 0.1234);
+				    y_c(i,4) = y0(i)-l*cos(6*obj.alpha1-obj.Q(i,3) + 0.1234);
+
+				    t1 = linspace(3*pi/2-angle1, 11*pi/6-angle1)';
+				    x_f(:,1,i) = x_c(i,1) + 0.25*cos(t1);
+				    y_f(:,1,i) = y_c(i,1) + 0.25*sin(t1);
+					
+					x_f(:,2,i) = x_c(i,2) + 0.25*cos(t1+2*obj.alpha1);
+					y_f(:,2,i) = y_c(i,2) + 0.25*sin(t1+2*obj.alpha1);
+
+					x_f(:,3,i) = x_c(i,3) + 0.25*cos(t1+4*obj.alpha1);
+					y_f(:,3,i) = y_c(i,3) + 0.25*sin(t1+4*obj.alpha1);
+
+					x_f(:,4,i) = x_c(i,4) + 0.25*cos(t1+6*obj.alpha1);
+					y_f(:,4,i) = y_c(i,4) + 0.25*sin(t1+6*obj.alpha1);
+				end					
+					
 
 			    % if obj.Leg1.form == 'arc':
 			    % 	t = linspace()
